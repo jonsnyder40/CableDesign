@@ -1,0 +1,73 @@
+# Weight per foot of the inner layer compound
+
+# inputs
+# cable factor table
+# Inner(Layer) Diameter = 		Target_Inner_Diameter
+# Number of Conductors = 		No_Conductors
+# Conductor Diameter = 			Conductor_Diameter
+# Specific Gravity = 			SG
+# Lay Length = 				Lay_Length
+# Tape Thickness before 1st Jacket = 	Tape1_Thickness
+# Tape2 Thickness before 1st Jacket = 	Tape2_Thickness
+# Braid Wire diameter before 1st Jacket= Braid_Wire_Diameter
+# Braid Wire coverage before 1st Jacket= Braid_Wire_Coverage
+# Ground Conductor Diameter1 = 		Gnd_Diameter1
+# Ground Conductor Diameter2 = 		Gnd_Diameter2
+# Ground Conductor Diameter3 = 		Gnd_Diameter3
+# Ground Conductor Diameter4 = 		Gnd_Diameter4
+# Filler Diameter = 			Filler_Diameter
+# Number of Fillers = 			No_Fillers
+# Filler Diameter2 = 			Filler_Diameter2
+# Number of Fillers2 = 			No_Fillers2
+
+#Table determined outputs - NEED TO UPDATE K FACTOR TABLE TO HANDLE LOOK UP FUNCTION AND INDEXING
+
+Dia_of_Conductors <- KFactors[No_Conductors,6] * Conductor_Diameter
+Area_Intertices <- KFactors[No_Conductors,9] * Conductor_Diameter^2 * No_Conductors
+Area_Internal_Intertice <- KFactors[No_Conductors,11] * Conductor_Diameter^2
+Dia fit in Intertice <- KFactors[No_Conductors,12] * Conductor_Diameter
+
+# Calculate Areas of Components
+
+AreaTargDiam <- pi * Target_Inner_Diameter^2 / 4
+
+GndConductorArea <- pi / 4 * (Gnd_Diameter1^2 + Gnd_Diameter2^2 + Gnd_Diameter3^2 + Gnd_Diameter4^2)
+
+FillerArea <- pi * Filler_Diameter^2 / 4 * No_Fillers + pi * Filler_Diameter2^2 / 4 * No_Fillers2
+
+Cond_Area <- pi * Conductor_Diameter^2 / 4 * No_Conductors
+
+TapeBraidArea <- (Tape1_Thickness + Tape2_Thickness + Braid_Wire_Diameter * 2) * Braid_Wire_Coverage * pi * Dia_of_Conductors
+
+# Calculate the area between the grounds and the conductors, this function can be called elsewhere for use
+
+AreaBetw3Circle <- function(Dia1,Dia2,Dia3) {
+	r1 <- Dia1/2; r2 <- Dia2/2; r3 <- Dia3/2
+	aa <- r2+r3; bb <- r1+r3; cc <- r1+r3
+	At <- .25 * ((aa+bb+cc)*(aa+bb-cc)*(aa-bb+cc)*(-aa+bb+cc))^.5
+	alpha <- acos((bb^2+cc^2-aa^2)/(2*bb*cc))
+	beta <- acos((aa^2+cc^2-bb^2)/(2*aa*cc))
+	gamma <- acos((aa^2+bb^2-cc^2)/(2*bb*aa))
+	areaA <- alpha / 2 * r1^2
+	areaB <- beta / 2 * r2^2
+	areaC <- gamma / 2 * r3^2
+	At - areaA - areaB - areaC
+}
+GapArea1 <- AreaBetw3Circle(conductor_dia,conductor_dia,Gap_Diameter1)
+GapArea2 <- AreaBetw3Circle(conductor_dia,conductor_dia,Gap_Diameter2)
+GapArea3 <- AreaBetw3Circle(conductor_dia,conductor_dia,Gap_Diameter3)
+GapArea4 <- AreaBetw3Circle(conductor_dia,conductor_dia,Gap_Diameter4)
+
+GapArea <- GapArea1 + GapArea2 + GapArea3 + GapArea4
+
+AreaSum <- AreaTargDiam - GapConductorArea - FillerArea - Cond_Area - TapeBraidArea - GapArea
+
+# Calculate if filler package is too large for available area
+
+# Calculate Length of 12 inches of Cable
+
+TwistingLength <- 12/LayLength*(LayLength^2+(pi*(Dia_of_Conductors - Conductor_Diameter)^2)^.5)
+
+# Calculate the volume and the weight of the compound in cable per 1 foot of cable in pounds
+
+lb_ft_inner <- AreaSum * TwistingLength * SG * 0.03612729
